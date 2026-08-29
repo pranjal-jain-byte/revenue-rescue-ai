@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: revenue-rescue-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: revenue_rescue
+      POSTGRES_PASSWORD: revenue_rescue_dev
+      POSTGRES_DB: revenue_rescue_ai
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U revenue_rescue -d revenue_rescue_ai']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

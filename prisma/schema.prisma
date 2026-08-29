@@ -1,0 +1,253 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum EventType {
+  PAYMENT_FAILED
+  CHECKOUT_ABANDONED
+  SUBSCRIPTION_FAILED
+  INVOICE_OVERDUE
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum CaseStatus {
+  OPEN
+  IN_PROGRESS
+  RECOVERED
+  FAILED
+  ESCALATED
+  STOPPED
+  BLOCKED
+}
+
+enum ActionType {
+  RETRY_PAYMENT
+  SEND_PAYMENT_REMINDER
+  OFFER_ALTERNATE_PAYMENT_METHOD
+  SEND_CHECKOUT_RECOVERY_MESSAGE
+  ESCALATE_TO_HUMAN
+  STOP_RECOVERY
+}
+
+enum ActionStatus {
+  PENDING
+  APPROVED
+  BLOCKED
+  EXECUTED
+  SUCCEEDED
+  FAILED
+}
+
+enum PolicyDecision {
+  APPROVED
+  BLOCKED
+  ESCALATE
+}
+
+enum DiagnosisConfidence {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+// ─── Merchants ────────────────────────────────────────────────────────────────
+
+model Merchant {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  businessType String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customers Customer[]
+  cases     RecoveryCase[]
+}
+
+// ─── Customers ────────────────────────────────────────────────────────────────
+
+model Customer {
+  id                     String   @id @default(cuid())
+  externalId             String   @unique
+  name                   String
+  email                  String
+  phone                  String?
+  lifetimeValue          Float    @default(0)
+  successfulPayments     Int      @default(0)
+  failedPayments         Int      @default(0)
+  previousRecoveries     Int      @default(0)
+  preferredPaymentMethod String?
+  optedOutOfMarketing    Boolean  @default(false)
+  riskScore              Float    @default(0)
+  merchantId             String
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  merchant Merchant       @relation(fields: [merchantId], references: [id])
+  cases    RecoveryCase[]
+}
+
+// ─── RecoveryCases ────────────────────────────────────────────────────────────
+
+model RecoveryCase {
+  id                   String      @id @default(cuid())
+  caseNumber           String      @unique
+  customerId           String
+  merchantId           String
+  eventType            EventType
+  amount               Float
+  currency             String      @default("INR")
+  failureReason        String?
+  paymentMethod        String?
+  orderId              String?
+  paymentId            String?
+  subscriptionId       String?
+  invoiceId            String?
+  riskLevel            RiskLevel   @default(MEDIUM)
+  status               CaseStatus  @default(OPEN)
+  recoveryProbability  Float       @default(0)
+  attemptCount         Int         @default(0)
+  potentialRecovery    Float       @default(0)
+  actualRecovery       Float       @default(0)
+  isSuspicious         Boolean     @default(false)
+  requiresHumanApproval Boolean    @default(false)
+  lastActionAt         DateTime?
+  recoveredAt          DateTime?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  customer     Customer        @relation(fields: [customerId], references: [id])
+  merchant     Merchant        @relation(fields: [merchantId], references: [id])
+  decisions    AgentDecision[]
+  actions      RecoveryAction[]
+  auditEvents  AuditEvent[]
+}
+
+// ─── AgentDecisions ───────────────────────────────────────────────────────────
+
+model AgentDecision {
+  id                    String              @id @default(cuid())
+  caseId                String
+  step                  String
+  inputHash             String?
+  rootCause             String?
+  recoveryProbability   Float?
+  recommendedAction     ActionType?
+  confidence            DiagnosisConfidence?
+  reasoning             String?
+  shouldEscalate        Boolean             @default(false)
+  policyDecision        PolicyDecision?
+  policyReason          String?
+  aiUsed                Boolean             @default(false)
+  aiFailed              Boolean             @default(false)
+  createdAt             DateTime            @default(now())
+
+  case RecoveryCase @relation(fields: [caseId], references: [id])
+}
+
+// ─── RecoveryActions ──────────────────────────────────────────────────────────
+
+model RecoveryAction {
+  id              String       @id @default(cuid())
+  caseId          String
+  actionType      ActionType
+  status          ActionStatus @default(PENDING)
+  policyDecision  PolicyDecision?
+  policyReason    String?
+  executionResult String?
+  amountRecovered Float        @default(0)
+  metadata        Json?
+  executedAt      DateTime?
+  createdAt       DateTime     @default(now())
+
+  case RecoveryCase @relation(fields: [caseId], references: [id])
+}
+
+// ─── PolicyRules ──────────────────────────────────────────────────────────────
+
+model PolicyRule {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  ruleKey     String   @unique
+  value       String
+  dataType    String   @default("number") // "number" | "boolean" | "string"
+  isEnabled   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── AuditEvents ──────────────────────────────────────────────────────────────
+
+model AuditEvent {
+  id            String   @id @default(cuid())
+  caseId        String?
+  event         String
+  agent         String   @default("SYSTEM")
+  previousState String?
+  newState      String?
+  metadata      Json?
+  timestamp     DateTime @default(now())
+
+  case RecoveryCase? @relation(fields: [caseId], references: [id])
+}
+
+// ─── SimulationRuns ───────────────────────────────────────────────────────────
+
+model SimulationRun {
+  id                  String    @id @default(cuid())
+  name                String
+  totalCases          Int
+  processedCases      Int       @default(0)
+  totalAtRisk         Float     @default(0)
+  totalRecovered      Float     @default(0)
+  totalUnrecovered    Float     @default(0)
+  totalBlocked        Float     @default(0)
+  totalEscalated      Float     @default(0)
+  actionsExecuted     Int       @default(0)
+  actionsBlocked      Int       @default(0)
+  escalations         Int       @default(0)
+  recoveryRate        Float     @default(0)
+  avgRecoveryTimeMs   Float     @default(0)
+  status              String    @default("RUNNING") // "RUNNING" | "COMPLETED" | "FAILED"
+  startedAt           DateTime  @default(now())
+  completedAt         DateTime?
+  metadata            Json?
+
+  results SimulationResult[]
+}
+
+// ─── SimulationResults ────────────────────────────────────────────────────────
+
+model SimulationResult {
+  id              String   @id @default(cuid())
+  simulationId    String
+  caseId          String?
+  caseNumber      String
+  eventType       EventType
+  amount          Float
+  recovered       Float    @default(0)
+  status          CaseStatus
+  actionTaken     ActionType?
+  policyDecision  PolicyDecision?
+  recoveryTimeMs  Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  simulation SimulationRun @relation(fields: [simulationId], references: [id])
+}
