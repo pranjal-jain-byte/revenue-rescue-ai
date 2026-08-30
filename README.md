@@ -1,271 +1,295 @@
 # RevenueRescue AI
 
-> **Detect. Diagnose. Recover. Stop.**
->
-> An autonomous, safety-controlled AI revenue recovery agent for merchants.
+Autonomous Revenue Recovery with Bounded AI Decisions
 
----
+## Overview
 
-## ⚠️ Important Disclaimer
+Revenue leakage does not occur through one failure mode. Payments fail, subscriptions degrade, checkouts are abandoned, invoices become overdue, and merchants lose recoverable revenue. 
 
-> **All financial transactions in this prototype use Razorpay Test Mode or a mock provider. No real money is moved. All customer and transaction data is synthetic.**
+RevenueRescue AI closes this loop through a deterministic, auditable workflow:
 
----
+Detect → Diagnose → Predict → Decide → Policy Gate → Execute → Observe
 
-## 🏆 Razorpay Buildathon 2024 — Track 03: AI Revenue Recovery
+AI recommends and assists with decisions by diagnosing root causes and predicting recovery probabilities. However, strict deterministic controls and policy limits exclusively govern financial actions. RevenueRescue AI never allows an LLM to directly execute a payment or financial API.
 
-RevenueRescue AI is a production-grade fintech agentic system that:
+## Why This Fits Razorpay AI Buildathon — Track 03
 
-- **Detects** revenue at risk: failed payments, abandoned checkouts, subscription failures, overdue invoices
-- **Diagnoses** root causes using Gemini AI with deterministic fallback
-- **Predicts** recovery probability with a transparent, explainable scoring model
-- **Decides** the optimal intervention strategy
-- **Gates** every action through a deterministic policy engine (the LLM NEVER bypasses this)
-- **Executes** bounded recovery actions via Razorpay Test Mode or a mock provider
-- **Observes** results and records a complete audit trail
-- **Measures** actual revenue recovered (not theoretical projections)
+This project was built for the Razorpay AI Buildathon 2026, targeting Track 03 — AI Revenue Recovery.
 
----
+The implementation maps directly to the official track requirements:
 
-## 📊 Results (1,000 Synthetic Cases)
+1. **Revenue-at-risk detection**: Identifies failed payments and abandoned checkouts.
+2. **Root-cause diagnosis**: AI-driven analysis of failure reasons.
+3. **Recovery probability estimation**: Logistic-regression-style scoring of case recovery likelihood.
+4. **Intervention selection**: Recommends the optimal recovery action (e.g., retry, email reminder).
+5. **Deterministic policy gating**: 7 firm business rules that block or escalate actions.
+6. **Bounded execution**: Safely executes via Razorpay Test Mode or a deterministic mock provider.
+7. **Outcome observation**: Records the result of the executed action.
+8. **Recovery measurement**: Tracks actual revenue recovered vs. at risk.
+9. **Auditability**: Maintains an immutable timeline of every event and decision.
+10. **Safe escalation/stopping rules**: Prevents infinite loops and auto-escalates high-value cases.
 
-| Metric | Value |
-|---|---|
-| Revenue at Risk | ₹18.42L |
-| Revenue Recovered | ~₹11.76L |
-| Recovery Rate | ~63.9% |
-| Actions Blocked by Policy | ~87 |
-| Human Escalations | ~42 |
-| Avg Recovery Time | ~420ms |
+## The Core Problem
 
-> These metrics are from a synthetic dataset. Real-world performance will differ. See [docs/evaluation.md](docs/evaluation.md).
+Simply detecting a failed payment is insufficient for recovery. Merchants need to know *why* it failed, *whether* it can be recovered, and *what* action to take. 
 
----
+RevenueRescue AI handles this flow:
 
-## 🏗 Architecture
+Payment failure → revenue becomes at risk → identify why → estimate probability of recovery → choose intervention → enforce policy → execute bounded action → observe result → record recovered revenue.
 
-```
-EVENT (Payment Failed / Checkout Abandoned / etc.)
- ↓
-[DETECT] Revenue at risk identified
- ↓
-[CLASSIFY] Event type + context gathered
- ↓
-[DIAGNOSE] Gemini AI analyzes structured context → validated JSON
- ↓
-[SCORE] Recovery probability (logistic regression model, explainable)
- ↓
-[SELECT] Action selection based on diagnosis + probability
- ↓
-[GATE] ← POLICY ENGINE (deterministic, LLM cannot bypass this)
- ↓ APPROVED        ↓ BLOCKED            ↓ ESCALATE
-[EXECUTE]      [AUDIT + BLOCK]    [HUMAN QUEUE]
- ↓
-[OBSERVE] Result recorded
- ↓
-[AUDIT] Every step immutably logged
- ↓
-RECOVERED / STOPPED / ESCALATED
+## Product Workflow
+
+```mermaid
+graph TD
+    A[Detect] --> B[Diagnose]
+    B --> C[Predict]
+    C --> D[Decide]
+    D --> E[Policy Gate]
+    E -->|Approved| F[Execute]
+    E -->|Blocked| G[Block & Audit]
+    E -->|Escalate| H[Human Queue]
+    F --> I[Observe]
+    I --> J[Recovered / Stopped / Escalated]
 ```
 
-**Critical architectural guarantee:**
+## Architecture
 
+```mermaid
+graph TD
+    UI[Frontend: Next.js 16 + React] --> API[Next.js API Layer]
+    API --> Workflow[Agent Workflow]
+    
+    Workflow --> AI[AI Diagnosis & Decision]
+    Workflow --> Scorer[Recovery Probability Scorer]
+    
+    AI --> Policy[Deterministic Policy Engine]
+    Scorer --> Policy
+    
+    Policy -->|Approved| Provider[Payment Provider / Mock]
+    
+    Workflow --> DB[(SQLite + Prisma)]
+    Provider --> DB
+    Policy --> DB
 ```
-❌ NEVER:  LLM → Direct Payment API
-✅ ALWAYS: LLM → Recommendation → Policy Engine → Executor → Payment Provider
+
+The AI is used for diagnosis and action recommendation. Deterministic controls are used for policy gating, execution, and state management.
+
+## AI Architecture
+
+- **Provider**: Gemini (via OpenAI-compatible API endpoints).
+- **Responsibility**: Parses failure context, diagnoses root causes, and recommends an initial recovery action.
+- **Deterministic Fallback**: If the AI is unavailable or times out, a hardcoded fallback diagnoses the issue and recommends a conservative action (e.g., escalate).
+- **Validation**: AI outputs are strictly parsed and validated against predefined ActionType enums.
+- **Safety Boundary**: The AI cannot execute financial transactions. It outputs a recommendation which is then passed to the deterministic Policy Engine.
+
+## Safety Model
+
+**AI recommendation → deterministic policy validation → bounded action → execution → audit**
+
+Critical guarantee: **LLM → direct payment API is NOT allowed.**
+Instead: **LLM → Recommendation → Policy Engine → Bounded Action → Payment Provider**
+
+Safety features implemented:
+- **Retry limits**: Maximum attempts are capped.
+- **Stopping rules**: Cases are marked as STOPPED or BLOCKED to prevent infinite loops.
+- **Escalation**: High-value cases are automatically routed to human review.
+- **Customer opt-out**: Marketing actions are blocked for opted-out customers.
+- **Suspicious transaction handling**: Flags and blocks potential fraud.
+- **Idempotency & Duplicate handling**: Prevents duplicate events from triggering duplicate financial actions.
+- **Payment timeout handling**: Safely marks actions as failed without retrying blindly.
+
+## Database Architecture
+
+The application is built on **SQLite** using **Prisma ORM**.
+
+```mermaid
+erDiagram
+    Merchant ||--o{ Customer : has
+    Merchant ||--o{ RecoveryCase : owns
+    Customer ||--o{ RecoveryCase : has
+    RecoveryCase ||--o{ AgentDecision : records
+    RecoveryCase ||--o{ RecoveryAction : executes
+    RecoveryCase ||--o{ AuditEvent : logs
 ```
 
----
+- **Merchant**: Business entity.
+- **Customer**: End-user with lifetime value and opt-out preferences.
+- **RecoveryCase**: The core entity tracking revenue at risk, current status (OPEN, IN_PROGRESS, RECOVERED, FAILED, ESCALATED, STOPPED, BLOCKED), and amounts.
+- **AgentDecision**: Immutable record of the AI/Agent recommendation and policy decision.
+- **RecoveryAction**: The execution record of the selected intervention.
+- **AuditEvent**: Complete timeline logging for traceability.
+- **PolicyRule**: Configurable rules enforced by the Policy Engine.
 
-## 🤖 Agent Actions
+Configuration uses `DATABASE_URL="file:./prisma/dev.db"`. Migrations and seed data generate 1,000 synthetic cases for evaluation.
 
-| Action | Description |
-|---|---|
-| `RETRY_PAYMENT` | Retry the failed payment via provider |
-| `SEND_PAYMENT_REMINDER` | Send payment link to customer |
-| `OFFER_ALTERNATE_PAYMENT_METHOD` | Suggest UPI/card/wallet alternative |
-| `SEND_CHECKOUT_RECOVERY_MESSAGE` | Abandoned cart recovery nudge |
-| `ESCALATE_TO_HUMAN` | Flag for manual review |
-| `STOP_RECOVERY` | Cease all recovery attempts |
+## API Architecture
 
----
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/dashboard` | Fetches aggregate metrics (at-risk, recovered, recovery rate) |
+| GET | `/api/recovery-cases` | Lists cases with filtering and pagination |
+| GET | `/api/recovery-cases/[id]` | Fetches detailed context, timeline, and actions for a specific case |
+| POST | `/api/recovery-cases/[id]/recover` | Triggers the agent workflow for a specific case |
+| POST | `/api/recovery-cases/[id]/escalate` | Manually escalates a case |
+| GET | `/api/audit-events` | Fetches system-wide audit events |
+| GET/PUT | `/api/policies` | Fetches and updates Policy Engine configurations |
+| GET | `/api/simulations` | Lists batch simulation runs |
+| POST | `/api/simulations/[id]` | Executes a batch simulation run |
 
-## 🛡 Policy Engine Guardrails
+## Revenue Recovery Logic
 
-The policy engine enforces 7 configurable rules that the LLM cannot bypass:
+The recovery probability is calculated using a deterministic scoring algorithm (logistic-regression style). 
+Features include:
+- Failure reason (High impact)
+- Customer historical success rate (Medium impact)
+- Transaction amount (Negative impact)
+- Retry count (Negative impact)
+- Suspicious flag (Strong negative impact)
 
-1. **MAX_RETRY_ATTEMPTS** — Max payment retries (default: 2)
-2. **HIGH_VALUE_THRESHOLD** — Amount requiring human approval (default: ₹50,000)
-3. **MIN_RECOVERY_PROBABILITY** — Minimum probability to attempt recovery (default: 20%)
-4. **MAX_DAILY_CONTACTS** — Max contacts per customer per day (default: 3)
-5. **SUSPICIOUS_AUTO_BLOCK** — Auto-block suspicious transactions
-6. **RESPECT_OPT_OUT** — Never contact opted-out customers
-7. **MAX_ESCALATION_VALUE** — Auto-escalate above threshold (default: ₹1L)
+It outputs a probability `[0.0, 1.0]` and a confidence level (`LOW`, `MEDIUM`, `HIGH`) with explainability factors.
 
-All rules are configurable from the `/policies` admin page.
+## Policy Engine
 
----
+The Policy Engine evaluates agent recommendations against 7 configurable rules:
 
-## 💰 Razorpay Integration
+1. **MAX_RETRY_ATTEMPTS**: Caps payment retries (default: 2).
+2. **HIGH_VALUE_THRESHOLD**: Requires human approval for actions above this amount.
+3. **MIN_RECOVERY_PROBABILITY**: Blocks actions if probability is below threshold (default: 20%).
+4. **MAX_DAILY_CONTACTS**: Limits customer communications per day.
+5. **SUSPICIOUS_AUTO_BLOCK**: Auto-blocks recovery for flagged transactions.
+6. **RESPECT_OPT_OUT**: Prevents contact actions for opted-out customers.
+7. **MAX_ESCALATION_VALUE**: Auto-escalates cases above a massive threshold.
 
-- Uses **Razorpay TEST MODE** (`rzp_test_...` keys) when credentials are provided
-- Falls back to **deterministic mock provider** automatically if no credentials
-- Safety check prevents live API keys from being used
-- Mock provider is seeded by case ID for reproducible demos
+## Reliability Lab
 
----
+The Reliability Lab allows manual injection of failure states to demonstrate system resilience and safety guarantees.
 
-## 🎮 Recovery Simulation
+- **AI_UNAVAILABLE**: Simulates an API outage. The system falls back to a deterministic path safely.
+- **INVALID_AI_RESPONSE**: Simulates a hallucination. The system rejects the payload and aborts/escalates.
+- **PAYMENT_TIMEOUT**: Simulates a provider timeout. The action is marked pending/failed safely without blind retries.
+- **DUPLICATE_EVENT**: Simulates webhook spam. The system idempotently drops duplicate triggers.
+- **SUSPICIOUS_TRANSACTION**: Injects fraud flags to demonstrate auto-blocking.
 
-Run the agent over 100, 500, or 1,000 synthetic cases:
+## Decision Graph
 
-1. Navigate to `/simulation`
-2. Select case count
-3. Click "Run Recovery Simulation"
-4. Watch the agent workflow execute step-by-step
-5. See recovered revenue, blocked actions, and escalations
+An interactive UI component detailing the lifecycle of a single recovery case. Selecting a stage (Detect, Diagnose, Predict, Decide, Policy Gate, Execute, Observe) reveals the exact data payload, JSON context, AI prompt output, and policy evaluations that occurred at that specific moment in time.
 
----
+## Investigation Timeline
 
-## 📈 Evaluation Methodology
+A chronological audit trail derived directly from `AuditEvent` records. It provides traceability, explainability, and compliance visibility for all system actions, ensuring a transparent history of financial operations and AI decisions.
 
-The recovery probability scorer uses a logistic-regression-style model with transparent, explainable features:
+## Batch Evaluation and Results
 
-| Feature | Impact |
-|---|---|
-| Failure reason | High |
-| Payment method | Low |
-| Historical success rate | Medium |
-| Previous recoveries | Medium |
-| Transaction amount | Negative |
-| Retry count | Negative |
-| Suspicious flag | Strong negative |
+The project uses a synthetic data pipeline (`prisma/seed.ts`) to evaluate recovery across a batch of 1,000 cases. 
 
-**Model metrics on synthetic test split:**
-- Precision: 0.74
-- Recall: 0.71
-- F1: 0.72
-- ROC-AUC: 0.81
+Results from a 1,000-case synthetic batch:
+- Total revenue at risk: ₹281.61L
+- Total recovered: ₹42.47L
+- Recovery rate: 15.1%
+- Cases recovered: 347
+- Cases stopped: 368
+- Cases escalated: 44
+- Cases blocked: 38
 
-> ⚠️ These metrics are from synthetic data. Do not extrapolate to production without real data.
+This demonstrates the system's ability to measure actual recovered money across a realistic cohort, adhering to the Track 03 evaluation bar.
 
----
+## Demo Flow
 
-## 🚀 Local Setup
+1. **0:00–0:30**: Outline the problem of revenue leakage and the agentic solution.
+2. **0:30–1:15**: Navigate to the Dashboard. Review aggregate revenue at risk, recovered revenue, and active cases.
+3. **1:15–2:15**: Open a failed payment case. Walk through the Detect → Diagnose → Predict → Decide lifecycle. Show the explainable recovery score.
+4. **2:15–3:00**: Open the Decision Graph tab. Highlight the Policy Gate node to prove deterministic bounding of AI decisions.
+5. **3:00–3:45**: Open the Timeline tab. Showcase the complete, immutable audit trail.
+6. **3:45–4:30**: Open the Reliability Lab. Inject an `AI_UNAVAILABLE` or `DUPLICATE_EVENT` failure to demonstrate safe fallbacks and idempotency.
+7. **4:30–5:00**: Summarize batch metrics (recovery rate, blocked cases) proving measured, compliant recovery at scale.
 
-### Prerequisites
-
-- Node.js 18+
-- Gemini API key (optional — safe fallback works without it)
-
-### 1. Clone and install
+## Local Development
 
 ```bash
+# 1. Clone the repository
 git clone <repo>
 cd revenue-rescue-ai
+
+# 2. Install dependencies
 npm install
-```
 
-### 2. Configure environment
-
-```bash
+# 3. Configure environment variables
 cp .env.example .env.local
-# Edit .env.local with your values
-```
 
-### 3. Initialize database
+# 4. Apply the SQLite schema
+npm run db:push
 
-```bash
-npm run db:push     # Apply schema
-npm run db:seed     # Seed 1,000+ synthetic cases
-```
+# 5. Seed the database with 1,000 synthetic cases
+npm run db:seed
 
-### 4. Start the app
-
-```bash
+# 6. Start the development server
 npm run dev
-# Open http://localhost:3000
 ```
 
----
+## Environment Variables
 
-## 🔑 Environment Variables
-
-| Variable | Description | Required |
+| Variable | Required | Purpose |
 |---|---|---|
-| `DATABASE_URL` | SQLite connection string (e.g. `file:./prisma/dev.db`) | ✅ |
-| `GEMINI_API_KEY` | Gemini API key for AI diagnosis | ❌ (fallback) |
-| `AI_BASE_URL` | OpenAI-compatible base URL | ❌ |
-| `AI_MODEL` | Model name | ❌ |
-| `PAYMENT_PROVIDER` | `mock` or `razorpay` | ❌ |
-| `RAZORPAY_KEY_ID` | Razorpay test key | ❌ |
-| `RAZORPAY_KEY_SECRET` | Razorpay test secret | ❌ |
+| `DATABASE_URL` | ✅ | SQLite connection string (`file:./prisma/dev.db`) |
+| `GEMINI_API_KEY` | ❌ | API key for Gemini models |
+| `AI_BASE_URL` | ❌ | Custom base URL for OpenAI-compatible endpoints |
+| `AI_MODEL` | ❌ | Model identifier |
+| `PAYMENT_PROVIDER` | ❌ | `razorpay` or `mock` (defaults to mock) |
+| `RAZORPAY_KEY_ID` | ❌ | Razorpay Test Key ID |
+| `RAZORPAY_KEY_SECRET`| ❌ | Razorpay Test Key Secret |
+| `NEXT_PUBLIC_DEMO_MODE`| ❌ | Enables UI demo features like Reliability Lab |
+| `NEXT_PUBLIC_APP_NAME`| ❌ | App display name |
 
----
+## Testing
 
-## 🎯 3-Minute Judge Demo Flow
+The project maintains a comprehensive testing suite for policy rules, recovery scoring, and accounting logic.
 
-1. Open `/dashboard` — see total revenue at risk
-2. Go to `/cases` and open a failed payment case
-3. Show the **Overview** tab — explain the explainable recovery probability score
-4. Open the **Decision Graph** tab — walk through the deterministic agent workflow (Detect → Diagnose → Predict → Decide → Gate → Execute → Observe)
-5. Show the **Policy Gate** node — prove the LLM is gated by deterministic limits
-6. Open the **Investigation Timeline** tab — show the immutable audit trail of past actions
-7. Open the **Reliability Lab** tab:
-   - Trigger `AI_UNAVAILABLE` — demonstrate deterministic safe fallback.
-   - Trigger `PAYMENT_TIMEOUT` — demonstrate idempotency preventing blind retries.
-   - Trigger `DUPLICATE_EVENT` — show the system safely blocking duplicate financial actions.
-8. Show the resulting audit trail in the **Timeline** tab for full observability.
+```bash
+npm run lint          # Run ESLint
+npx tsc --noEmit      # Run TypeScript typechecking
+npm run build         # Verify production build
+npx tsx tests/comprehensive.test.ts # Run the core business logic test suite
+```
 
-## 🔒 Security
+## Project Structure
 
-- No API keys committed to repository
-- All secrets via environment variables
-- LLM output validated before any execution
-- Policy engine is deterministic and LLM-independent
-- Mock provider by default (no accidental live transactions)
-- Razorpay safety check rejects non-test-mode keys
+```
+revenue-rescue-ai/
+├── app/                  # Next.js 16 App Router UI & API Routes
+├── components/           # Reusable React components
+├── docs/                 # Extended documentation
+├── lib/                  # Core business logic
+│   ├── agent/            # Workflow, Policy Engine, AI Diagnosis
+│   ├── db/               # Prisma client instantiation
+│   ├── providers/        # Payment providers (Mock / Razorpay)
+│   └── utils/            # Accounting & Logging utilities
+├── prisma/               # Schema and Database seeding
+└── tests/                # Core test suites
+```
 
----
+## Design Decisions
 
-## ⚙️ Tech Stack
+1. **Deterministic Policy Controls**: Financial safety is paramount. The LLM cannot be fully trusted with unbounded execution.
+2. **AI Action Isolation**: The AI is restricted to analytical diagnosis and bounded recommendations, leaving execution to hardcoded provider implementations.
+3. **First-Class Audit Events**: Every state change emits an audit log for full compliance and debuggability.
+4. **Failure Injection**: Proves system safety and idempotency, which is critical for fintech applications.
+5. **Synthetic Batch Evaluation**: Demonstrates scale and statistical recovery metrics rather than anecdotal single-case successes.
+6. **Bounded Recovery**: It is safer to escalate or stop recovery than to aggressively retry and alienate the customer or incur network penalties.
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 16, TypeScript, Tailwind CSS, Recharts |
-| Backend | Next.js API Routes |
-| Database | SQLite + Prisma ORM |
-| AI | Gemini (via OpenAI-compatible API) |
-| ML | Logistic regression (custom, explainable) |
-| Payment | Razorpay Test Mode / Mock Provider |
+## Limitations
 
----
+- Data is fully synthetic and generated via a seed script.
+- The default payment provider is a deterministic mock. Real-time webhooks are not implemented.
+- Authentication and authorization are not implemented in this prototype.
+- The recovery probability model uses simplified heuristics rather than a trained neural network.
 
-## 📚 Documentation
+## Future Work
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) — Full system design
-- [SETUP.md](SETUP.md) — Detailed setup guide
-- [docs/safety.md](docs/safety.md) — Safety guarantees
-- [docs/evaluation.md](docs/evaluation.md) — ML evaluation methodology
+- Integration with production payment webhooks.
+- Multi-merchant isolation and authentication.
+- Machine-learning model trained on real historical merchant data.
+- Human-in-the-loop interface for reviewing escalations.
 
----
+## License
 
-## ⚠️ Limitations
-
-1. Recovery probability model trained on synthetic data — real-world accuracy unknown
-2. Simulation uses simplified action outcomes — production requires real payment webhooks
-3. AI diagnosis is best-effort — deterministic fallback is always available
-4. No real-time webhook integration — events are seeded/triggered manually
-5. No authentication in demo mode
-
----
-
-## 🔮 Future Improvements
-
-- Real-time Razorpay webhook integration
-- Production ML model trained on merchant's historical data
-- Customer segmentation for personalized recovery
-- Multi-merchant isolation
-- A/B testing for recovery strategies
-- LLM fine-tuning on recovery outcomes
-- Real-time notification system
+MIT License
