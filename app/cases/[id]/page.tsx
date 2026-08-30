@@ -27,7 +27,7 @@ export default function CaseDetailPage() {
     } else if (result.policyDecision === 'BLOCKED') {
       setActionResult({ type: 'blocked', message: result.reasoning ?? 'Blocked by policy engine.' });
     } else if (result.status === 'RECOVERED') {
-      setActionResult({ type: 'success', message: `✅ Recovery successful! ${formatINR(result.amountRecovered ?? 0)} recovered.` });
+      setActionResult({ type: 'success', message: `Recovery successful! ${formatINR(result.amountRecovered ?? 0)} recovered.` });
     } else {
       setActionResult({ type: 'error', message: `Action taken: ${result.status} — ${result.reasoning ?? ''}` });
     }
@@ -231,7 +231,7 @@ export default function CaseDetailPage() {
             </div>
             {caseData.customer.optedOutOfMarketing && (
               <div style={{ marginTop: 12, padding: '8px 12px', background: 'var(--accent-red-dim)', borderRadius: 6, fontSize: 12, color: 'var(--accent-red)' }}>
-                ⛔ Customer has opted out of marketing communications
+                Customer has opted out of marketing communications
               </div>
             )}
           </div>
@@ -321,13 +321,13 @@ export default function CaseDetailPage() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
                   <div style={{ color: 'var(--accent-green)' }}>
-                    ✓ {caseData.customer.successfulPayments} successful payments
+                    {caseData.customer.successfulPayments} successful payments
                   </div>
                   <div style={{ color: caseData.customer.failedPayments > 0 ? 'var(--accent-red)' : 'var(--text-muted)' }}>
-                    {caseData.customer.failedPayments > 0 ? '✗' : '○'} {caseData.customer.failedPayments} previous failure(s)
+                    {caseData.customer.failedPayments} previous failure(s)
                   </div>
                   <div style={{ color: caseData.customer.previousRecoveries > 0 ? 'var(--accent-green)' : 'var(--text-muted)' }}>
-                    ↩ {caseData.customer.previousRecoveries} previous recovery(ies)
+                    {caseData.customer.previousRecoveries} previous recovery(ies)
                   </div>
                 </div>
               </div>
@@ -360,7 +360,7 @@ export default function CaseDetailPage() {
 
               {latestDecision.aiFailed && (
                 <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(255,107,53,0.08)', border: '1px solid rgba(255,107,53,0.2)', borderRadius: 6, fontSize: 11, color: 'var(--accent-orange)' }}>
-                  ⚠ AI diagnosis unavailable — deterministic fallback active. No financial action executed from AI output alone.
+                  AI diagnosis unavailable — deterministic fallback active. No financial action executed from AI output alone.
                 </div>
               )}
             </div>
@@ -388,7 +388,7 @@ export default function CaseDetailPage() {
                     <div style={{ display: 'flex', gap: 6 }}>
                       {action.policyDecision && (
                         <span className={`badge policy-${action.policyDecision.toLowerCase()}`} style={{ fontSize: 10 }}>
-                          {action.policyDecision === 'BLOCKED' ? '🛡 POLICY BLOCKED' : action.policyDecision === 'APPROVED' ? '✓ APPROVED' : '↑ ESCALATE'}
+                          {action.policyDecision === 'BLOCKED' ? 'POLICY BLOCKED' : action.policyDecision === 'APPROVED' ? 'APPROVED' : 'ESCALATE'}
                         </span>
                       )}
                       <span className={`badge badge-${action.status.toLowerCase()}`}>{action.status}</span>
@@ -406,7 +406,7 @@ export default function CaseDetailPage() {
                   )}
                   {action.amountRecovered > 0 && (
                     <div style={{ marginTop: 6, fontSize: 12, fontWeight: 600, color: 'var(--accent-green)' }}>
-                      ✅ Recovered: {formatINR(action.amountRecovered)}
+                      Recovered: {formatINR(action.amountRecovered)}
                     </div>
                   )}
                 </div>

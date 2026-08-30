@@ -7,8 +7,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import {
-  TrendingUp, TrendingDown, AlertTriangle, CheckCircle2,
-  Activity, Zap, ArrowRight, RefreshCw,
+  ArrowRight, RefreshCw, Zap
 } from 'lucide-react';
 
 interface DashboardData {
@@ -156,10 +155,9 @@ export default function DashboardPage() {
             Revenue Recovery Dashboard
           </h1>
           <div style={{ color: 'var(--text-muted)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Activity size={13} />
-            Autonomous agent monitoring {kpis.totalCases.toLocaleString()} cases
-            <span style={{ padding: '1px 7px', background: 'rgba(255,165,2,0.1)', border: '1px solid rgba(255,165,2,0.2)', borderRadius: 4, fontSize: 10, color: 'var(--accent-yellow)', fontWeight: 600 }}>
-              SYNTHETIC DATA — DEMO MODE
+            Monitor revenue-at-risk, recovery performance, policy decisions, and escalations.
+            <span style={{ padding: '2px 8px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 4, fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>
+              DEMO ENVIRONMENT
             </span>
           </div>
         </div>
@@ -182,8 +180,7 @@ export default function DashboardPage() {
       {/* Primary KPI Row — Revenue Recovered is the hero metric */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 16 }} className="kpi-grid">
         {/* PRIMARY HERO METRIC */}
-        <div className="kpi-card kpi-card-green" style={{ gridColumn: 'span 1' }}>
-          <div className="kpi-icon"><TrendingUp size={40} /></div>
+        <div className="kpi-card" style={{ gridColumn: 'span 1' }}>
           <div className="kpi-label">Revenue Recovered</div>
           <div className="kpi-value" style={{ color: 'var(--accent-green)' }}>
             {formatINR(kpis.totalRecovered)}
@@ -201,22 +198,19 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="kpi-card kpi-card-red">
-          <div className="kpi-icon"><AlertTriangle size={40} /></div>
+        <div className="kpi-card">
           <div className="kpi-label">Revenue at Risk</div>
           <div className="kpi-value">{formatINR(kpis.totalAtRisk)}</div>
           <div className="kpi-sublabel">{kpis.totalCases.toLocaleString()} cases</div>
         </div>
 
-        <div className="kpi-card kpi-card-blue">
-          <div className="kpi-icon"><CheckCircle2 size={40} /></div>
+        <div className="kpi-card">
           <div className="kpi-label">Successful Recoveries</div>
           <div className="kpi-value">{kpis.successfulRecoveries.toLocaleString()}</div>
           <div className="kpi-sublabel">cases resolved</div>
         </div>
 
-        <div className="kpi-card kpi-card-yellow">
-          <div className="kpi-icon"><TrendingDown size={40} /></div>
+        <div className="kpi-card">
           <div className="kpi-label">Unrecoverable</div>
           <div className="kpi-value">{formatINR(kpis.unrecoverable)}</div>
           <div className="kpi-sublabel">not recovered</div>
@@ -225,7 +219,7 @@ export default function DashboardPage() {
 
       {/* Secondary KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
-        <div className="kpi-card kpi-card-purple">
+        <div className="kpi-card">
           <div className="kpi-label">Cases Analyzed</div>
           <div className="kpi-value-sm">{kpis.totalCases.toLocaleString()}</div>
         </div>
@@ -243,7 +237,7 @@ export default function DashboardPage() {
           </div>
           <div className="kpi-sublabel">requiring review</div>
         </div>
-        <div className="kpi-card kpi-card-orange">
+        <div className="kpi-card">
           <div className="kpi-label">Opportunity Estimate</div>
           <div className="kpi-value-sm" style={{ color: 'var(--accent-orange)' }}>
             {formatINR(kpis.opportunityEstimate)}
@@ -358,7 +352,7 @@ export default function DashboardPage() {
         {/* Recent Audit Events */}
         <div className="card">
           <div className="section-header">
-            <div className="section-title">Recent Agent Activity</div>
+            <div className="section-title">Recent Activity</div>
             <Link href="/audit" style={{ fontSize: 11, color: 'var(--rzp-blue)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
               View all <ArrowRight size={10} />
             </Link>
@@ -404,16 +398,15 @@ export default function DashboardPage() {
       {data.lastSimulation && (
         <div style={{
           marginTop: 20,
-          padding: '16px 20px',
-          background: 'var(--rzp-blue-dim)',
-          border: '1px solid rgba(45,104,255,0.2)',
+          padding: '12px 16px',
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border)',
           borderRadius: 'var(--radius-lg)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Zap size={16} color="var(--rzp-blue)" />
             <div>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
                 Last Simulation: {data.lastSimulation.totalCases} cases processed
@@ -424,7 +417,7 @@ export default function DashboardPage() {
               </span>
             </div>
           </div>
-          <Link href="/simulation" className="btn btn-primary btn-sm">
+          <Link href="/simulation" className="btn btn-secondary btn-sm">
             New Simulation <ArrowRight size={12} />
           </Link>
         </div>

@@ -124,18 +124,18 @@ export function GraphTab({ caseData }: { caseData: CaseDetail }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 6 }}>
                   <span>Retry Limit</span>
-                  <span style={{ color: 'var(--accent-green)' }}>✓ Pass ({caseData.attemptCount} / 3)</span>
+                  <span style={{ color: 'var(--accent-green)' }}>Pass ({caseData.attemptCount} / 3)</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 6 }}>
                   <span>Customer Opt-out</span>
                   <span style={{ color: caseData.customer.optedOutOfMarketing ? 'var(--accent-red)' : 'var(--accent-green)' }}>
-                    {caseData.customer.optedOutOfMarketing ? '✗ Opted Out' : '✓ Pass'}
+                    {caseData.customer.optedOutOfMarketing ? 'Opted Out' : 'Pass'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 6 }}>
                   <span>Risk Level</span>
                   <span style={{ color: caseData.isSuspicious ? 'var(--accent-red)' : 'var(--accent-green)' }}>
-                    {caseData.isSuspicious ? '✗ Suspicious' : '✓ Pass'}
+                    {caseData.isSuspicious ? 'Suspicious' : 'Pass'}
                   </span>
                 </div>
               </div>

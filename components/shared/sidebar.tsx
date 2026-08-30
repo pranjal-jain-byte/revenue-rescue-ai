@@ -46,7 +46,7 @@ export function Sidebar() {
           <div style={{
             width: 32,
             height: 32,
-            background: 'linear-gradient(135deg, #2d68ff 0%, #a855f7 100%)',
+            background: 'var(--rzp-blue)',
             borderRadius: 8,
             display: 'flex',
             alignItems: 'center',
@@ -59,7 +59,7 @@ export function Sidebar() {
               RevenueRescue
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500 }}>
-              AI Agent
+              AI Revenue Recovery
             </div>
           </div>
         </div>
@@ -68,16 +68,16 @@ export function Sidebar() {
       {/* Synthetic Data Notice */}
       <div style={{
         margin: '12px 12px 0',
-        padding: '8px 10px',
-        background: 'rgba(255,165,2,0.08)',
-        border: '1px solid rgba(255,165,2,0.2)',
+        padding: '10px',
+        background: 'var(--bg-secondary)',
+        border: '1px solid var(--border)',
         borderRadius: 6,
         fontSize: 10,
-        color: 'var(--accent-yellow)',
+        color: 'var(--text-muted)',
         lineHeight: 1.5,
       }}>
-        📊 Demo Mode — Synthetic data.<br />
-        All transactions use mock provider. No real money moved.
+        <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>DEMO ENVIRONMENT</div>
+        Synthetic transaction data is used for demonstration. No real customer or payment data is processed.
       </div>
 
       {/* Navigation */}
@@ -127,8 +127,8 @@ export function Sidebar() {
       {/* Footer */}
       <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
         <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-          <div style={{ fontWeight: 600, marginBottom: 2 }}>Razorpay Buildathon 2024</div>
-          <div>Track 03: AI Revenue Recovery</div>
+          <div style={{ fontWeight: 600, marginBottom: 2 }}>RevenueRescue AI</div>
+          <div>AI Revenue Recovery</div>
         </div>
       </div>
     </aside>
