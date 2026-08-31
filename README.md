@@ -48,6 +48,20 @@ The Safety Model guarantees:
 
 If the AI API fails, times out, or hallucinates, a hardcoded fallback automatically takes over to escalate or safely stop the case. The system enforces idempotency, stopping rules, maximum retries, and high-value escalation thresholds deterministically.
 
+## Batch Evaluation
+
+RevenueRescue AI includes a reproducible batch evaluation system to measure the agent's effectiveness across a large dataset. 
+
+- **Dataset**: The evaluation uses a synthetic dataset of 1,000 generated recovery cases. (This data is for demonstration and does not reflect real merchant performance).
+- **Metrics**: Calculates Total Revenue at Risk, Total Revenue Recovered, Recovery Rate, Escalations, and Blocked Actions.
+- **Single Source of Truth**: The dashboard metrics and the CLI evaluation share the exact same underlying dataset and calculation logic (`lib/utils/evaluation.ts`).
+
+To reproduce the batch evaluation metrics, run:
+
+```bash
+npm run evaluate
+```
+
 ## Database
 
 Built on SQLite using Prisma ORM.

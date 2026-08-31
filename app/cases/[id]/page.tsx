@@ -3,13 +3,30 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
-  ArrowLeft, User, CreditCard, Bot, Shield, Play, RefreshCw, UserCheck,
+  ArrowLeft, User, CreditCard, Play, RefreshCw, UserCheck, Bot, Shield,
 } from 'lucide-react';
 
 import { CaseDetail, formatINR } from './types';
 import { TimelineTab } from './components/timeline-tab';
 import { GraphTab } from './components/graph-tab';
 import { LabTab } from './components/lab-tab';
+
+function DataGrid({ fields }: { fields: { label: string; value: string | number; mono?: boolean }[] }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      {fields.map(f => (
+        <div key={f.label}>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {f.label}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-primary)', fontFamily: f.mono ? 'var(--font-mono)' : 'inherit', wordBreak: 'break-all' }}>
+            {f.value}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function CaseDetailPage() {
   const params = useParams();
@@ -159,6 +176,34 @@ export default function CaseDetailPage() {
         </div>
       )}
 
+      {/* Dense Context Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 16, marginBottom: 24, padding: '16px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+        <div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Case ID</div>
+          <div style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--rzp-blue)' }}>{caseData.caseNumber}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Amount</div>
+          <div style={{ fontSize: 13, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{formatINR(caseData.amount)}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Event</div>
+          <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>{caseData.eventType.replace(/_/g, ' ')}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Status</div>
+          <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>{caseData.status.replace(/_/g, ' ')}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Recovery Prob.</div>
+          <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>{(caseData.recoveryProbability * 100).toFixed(0)}%</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Recommended Action</div>
+          <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>{latestDecision?.recommendedAction?.replace(/_/g, ' ') || 'None'}</div>
+        </div>
+      </div>
+
       {/* Tabs Navigation */}
       <div style={{ display: 'flex', gap: 24, borderBottom: '1px solid var(--border)', marginBottom: 24 }}>
         {['OVERVIEW', 'TIMELINE', 'GRAPH', 'LAB'].map(tab => {
@@ -206,29 +251,18 @@ export default function CaseDetailPage() {
               <User size={14} color="var(--text-muted)" />
               <div className="section-title" style={{ margin: 0 }}>Customer Context</div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {[
-                { label: 'Name', value: caseData.customer.name },
-                { label: 'Customer ID', value: caseData.customer.externalId },
-                { label: 'Email', value: caseData.customer.email },
-                { label: 'Phone', value: caseData.customer.phone ?? '—' },
-                { label: 'Lifetime Value', value: formatINR(caseData.customer.lifetimeValue), mono: true },
-                { label: 'Merchant', value: caseData.merchant.name },
-                { label: 'Successful Payments', value: String(caseData.customer.successfulPayments) },
-                { label: 'Failed Payments', value: String(caseData.customer.failedPayments) },
-                { label: 'Previous Recoveries', value: String(caseData.customer.previousRecoveries) },
-                { label: 'Preferred Method', value: caseData.customer.preferredPaymentMethod ?? '—' },
-              ].map(f => (
-                <div key={f.label}>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    {f.label}
-                  </div>
-                  <div style={{ fontSize: 13, color: 'var(--text-primary)', fontFamily: f.mono ? 'var(--font-mono)' : 'inherit' }}>
-                    {f.value}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <DataGrid fields={[
+              { label: 'Name', value: caseData.customer.name },
+              { label: 'Customer ID', value: caseData.customer.externalId },
+              { label: 'Email', value: caseData.customer.email },
+              { label: 'Phone', value: caseData.customer.phone ?? '—' },
+              { label: 'Lifetime Value', value: formatINR(caseData.customer.lifetimeValue), mono: true },
+              { label: 'Merchant', value: caseData.merchant.name },
+              { label: 'Successful Payments', value: String(caseData.customer.successfulPayments) },
+              { label: 'Failed Payments', value: String(caseData.customer.failedPayments) },
+              { label: 'Previous Recoveries', value: String(caseData.customer.previousRecoveries) },
+              { label: 'Preferred Method', value: caseData.customer.preferredPaymentMethod ?? '—' },
+            ]} />
             {caseData.customer.optedOutOfMarketing && (
               <div style={{ marginTop: 12, padding: '8px 12px', background: 'var(--accent-red-dim)', borderRadius: 6, fontSize: 12, color: 'var(--accent-red)' }}>
                 Customer has opted out of marketing communications
@@ -242,27 +276,16 @@ export default function CaseDetailPage() {
               <CreditCard size={14} color="var(--text-muted)" />
               <div className="section-title" style={{ margin: 0 }}>Transaction Context</div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {[
-                { label: 'Amount', value: formatINR(caseData.amount), mono: true },
-                { label: 'Currency', value: caseData.currency },
-                { label: 'Event Type', value: caseData.eventType.replace(/_/g, ' ') },
-                { label: 'Payment Method', value: caseData.paymentMethod ?? '—' },
-                { label: 'Failure Reason', value: caseData.failureReason?.replace(/_/g, ' ') ?? '—' },
-                { label: 'Attempt Count', value: String(caseData.attemptCount) },
-                { label: 'Order ID', value: caseData.orderId ?? '—', mono: true },
-                { label: 'Payment ID', value: caseData.paymentId ?? '—', mono: true },
-              ].map(f => (
-                <div key={f.label}>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    {f.label}
-                  </div>
-                  <div style={{ fontSize: 13, color: 'var(--text-primary)', fontFamily: f.mono ? 'var(--font-mono)' : 'inherit', wordBreak: 'break-all' }}>
-                    {f.value}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <DataGrid fields={[
+              { label: 'Amount', value: formatINR(caseData.amount), mono: true },
+              { label: 'Currency', value: caseData.currency },
+              { label: 'Event Type', value: caseData.eventType.replace(/_/g, ' ') },
+              { label: 'Payment Method', value: caseData.paymentMethod ?? '—' },
+              { label: 'Failure Reason', value: caseData.failureReason?.replace(/_/g, ' ') ?? '—' },
+              { label: 'Attempt Count', value: String(caseData.attemptCount) },
+              { label: 'Order ID', value: caseData.orderId ?? '—', mono: true },
+              { label: 'Payment ID', value: caseData.paymentId ?? '—', mono: true },
+            ]} />
           </div>
 
           {/* Recovery Summary */}

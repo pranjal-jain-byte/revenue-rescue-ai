@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ArrowDown } from 'lucide-react';
 import { CaseDetail, formatINR } from '../types';
 
 type Stage = 'DETECT' | 'DIAGNOSE' | 'PREDICT' | 'DECIDE' | 'POLICY' | 'EXECUTE' | 'OBSERVE';
@@ -113,32 +114,42 @@ export function GraphTab({ caseData }: { caseData: CaseDetail }) {
         return (
           <div className="card">
             <div className="section-title">Deterministic Policy Gate</div>
-            <div style={{ marginBottom: 16 }}>
-              <div className="text-muted" style={{ fontSize: 11, textTransform: 'uppercase' }}>Decision</div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: latestAction?.policyDecision === 'BLOCKED' ? 'var(--accent-red)' : 'var(--accent-green)' }}>
-                {latestAction?.policyDecision ?? 'APPROVED'}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '24px 0' }}>
+              
+              <div style={{ border: '1px solid var(--border)', background: 'var(--bg-secondary)', padding: '12px 24px', borderRadius: 8, fontSize: 13, fontWeight: 600, color: 'var(--rzp-blue)' }}>
+                RECOMMENDED: {latestDecision?.recommendedAction?.replace(/_/g, ' ') || 'None'}
               </div>
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <div className="text-muted" style={{ fontSize: 11, textTransform: 'uppercase', marginBottom: 8 }}>Safety Checks</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 6 }}>
-                  <span>Retry Limit</span>
-                  <span style={{ color: 'var(--accent-green)' }}>Pass ({caseData.attemptCount} / 3)</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 6 }}>
-                  <span>Customer Opt-out</span>
-                  <span style={{ color: caseData.customer.optedOutOfMarketing ? 'var(--accent-red)' : 'var(--accent-green)' }}>
-                    {caseData.customer.optedOutOfMarketing ? 'Opted Out' : 'Pass'}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 6 }}>
-                  <span>Risk Level</span>
-                  <span style={{ color: caseData.isSuspicious ? 'var(--accent-red)' : 'var(--accent-green)' }}>
-                    {caseData.isSuspicious ? 'Suspicious' : 'Pass'}
-                  </span>
+              
+              <ArrowDown size={16} color="var(--text-muted)" />
+              
+              <div style={{ border: '1px solid var(--border)', background: 'var(--bg-card)', padding: '16px 24px', borderRadius: 8, textAlign: 'center', minWidth: 260 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>Policy Check</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12, textAlign: 'left' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Retry Limit</span>
+                    <span style={{ color: 'var(--text-primary)' }}>{caseData.attemptCount} / 3</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Risk Level</span>
+                    <span style={{ color: caseData.isSuspicious ? 'var(--accent-red)' : 'var(--text-primary)' }}>{caseData.isSuspicious ? 'Suspicious' : 'Pass'}</span>
+                  </div>
                 </div>
               </div>
+
+              <ArrowDown size={16} color="var(--text-muted)" />
+
+              <div style={{ 
+                border: `1px solid ${latestAction?.policyDecision === 'BLOCKED' || latestDecision?.policyDecision === 'BLOCKED' ? 'var(--accent-red)' : latestAction?.policyDecision === 'ESCALATE' || latestDecision?.policyDecision === 'ESCALATE' ? 'var(--accent-yellow)' : 'var(--accent-green)'}`, 
+                background: latestAction?.policyDecision === 'BLOCKED' || latestDecision?.policyDecision === 'BLOCKED' ? 'var(--accent-red-dim)' : latestAction?.policyDecision === 'ESCALATE' || latestDecision?.policyDecision === 'ESCALATE' ? 'var(--accent-yellow-dim)' : 'var(--accent-green-dim)', 
+                padding: '12px 24px', 
+                borderRadius: 8, 
+                fontSize: 14, 
+                fontWeight: 600, 
+                color: latestAction?.policyDecision === 'BLOCKED' || latestDecision?.policyDecision === 'BLOCKED' ? 'var(--accent-red)' : latestAction?.policyDecision === 'ESCALATE' || latestDecision?.policyDecision === 'ESCALATE' ? 'var(--accent-yellow)' : 'var(--accent-green)'
+              }}>
+                {latestAction?.policyDecision ?? latestDecision?.policyDecision ?? 'APPROVED'}
+              </div>
+
             </div>
             {latestAction?.policyReason && (
               <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>

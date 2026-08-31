@@ -42,6 +42,15 @@ interface DashboardData {
     recoveryRate: number;
     completedAt: string;
   } | null;
+  recentCasesTable: {
+    id: string;
+    caseNumber: string;
+    eventType: string;
+    amount: number;
+    recoveryProbability: number;
+    status: string;
+    recommendedAction: string | null;
+  }[];
 }
 
 function formatINR(amount: number): string {
@@ -177,72 +186,31 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Primary KPI Row — Revenue Recovered is the hero metric */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 16 }} className="kpi-grid">
-        {/* PRIMARY HERO METRIC */}
-        <div className="kpi-card" style={{ gridColumn: 'span 1' }}>
+      {/* KPI Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 16, marginBottom: 28 }} className="kpi-grid">
+        <div className="kpi-card" style={{ padding: '16px' }}>
           <div className="kpi-label">Revenue Recovered</div>
-          <div className="kpi-value" style={{ color: 'var(--accent-green)' }}>
-            {formatINR(kpis.totalRecovered)}
-          </div>
-          <div style={{ marginTop: 10 }}>
-            <div className="progress-bar">
-              <div
-                className="progress-fill progress-fill-green"
-                style={{ width: `${(kpis.recoveryRate * 100).toFixed(1)}%` }}
-              />
-            </div>
-            <div className="kpi-sublabel" style={{ marginTop: 4 }}>
-              {(kpis.recoveryRate * 100).toFixed(1)}% recovery rate
-            </div>
-          </div>
+          <div className="kpi-value-sm" style={{ color: 'var(--accent-green)' }}>{formatINR(kpis.totalRecovered)}</div>
         </div>
-
-        <div className="kpi-card">
+        <div className="kpi-card" style={{ padding: '16px' }}>
           <div className="kpi-label">Revenue at Risk</div>
-          <div className="kpi-value">{formatINR(kpis.totalAtRisk)}</div>
-          <div className="kpi-sublabel">{kpis.totalCases.toLocaleString()} cases</div>
+          <div className="kpi-value-sm">{formatINR(kpis.totalAtRisk)}</div>
         </div>
-
-        <div className="kpi-card">
-          <div className="kpi-label">Successful Recoveries</div>
-          <div className="kpi-value">{kpis.successfulRecoveries.toLocaleString()}</div>
-          <div className="kpi-sublabel">cases resolved</div>
+        <div className="kpi-card" style={{ padding: '16px' }}>
+          <div className="kpi-label">Recovery Rate</div>
+          <div className="kpi-value-sm">{(kpis.recoveryRate * 100).toFixed(1)}%</div>
         </div>
-
-        <div className="kpi-card">
-          <div className="kpi-label">Unrecoverable</div>
-          <div className="kpi-value">{formatINR(kpis.unrecoverable)}</div>
-          <div className="kpi-sublabel">not recovered</div>
+        <div className="kpi-card" style={{ padding: '16px' }}>
+          <div className="kpi-label">Cases Recovered</div>
+          <div className="kpi-value-sm">{kpis.successfulRecoveries.toLocaleString()}</div>
         </div>
-      </div>
-
-      {/* Secondary KPI Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
-        <div className="kpi-card">
-          <div className="kpi-label">Cases Analyzed</div>
-          <div className="kpi-value-sm">{kpis.totalCases.toLocaleString()}</div>
+        <div className="kpi-card" style={{ padding: '16px' }}>
+          <div className="kpi-label">Escalations</div>
+          <div className="kpi-value-sm" style={{ color: 'var(--accent-yellow)' }}>{kpis.escalations.toLocaleString()}</div>
         </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Actions Blocked</div>
-          <div className="kpi-value-sm" style={{ color: 'var(--accent-red)' }}>
-            {kpis.actionsBlocked.toLocaleString()}
-          </div>
-          <div className="kpi-sublabel">by policy engine</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Human Escalations</div>
-          <div className="kpi-value-sm" style={{ color: 'var(--accent-yellow)' }}>
-            {kpis.escalations.toLocaleString()}
-          </div>
-          <div className="kpi-sublabel">requiring review</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Opportunity Estimate</div>
-          <div className="kpi-value-sm" style={{ color: 'var(--accent-orange)' }}>
-            {formatINR(kpis.opportunityEstimate)}
-          </div>
-          <div className="kpi-sublabel">additional recoverable</div>
+        <div className="kpi-card" style={{ padding: '16px' }}>
+          <div className="kpi-label">Blocked Actions</div>
+          <div className="kpi-value-sm" style={{ color: 'var(--accent-red)' }}>{kpis.actionsBlocked.toLocaleString()}</div>
         </div>
       </div>
 
@@ -391,6 +359,53 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Recent Cases */}
+      <div className="card" style={{ marginTop: 24, marginBottom: 24 }}>
+        <div className="section-header">
+          <div className="section-title">Recent Recovery Cases</div>
+          <Link href="/cases" style={{ fontSize: 11, color: 'var(--rzp-blue)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+            View all <ArrowRight size={10} />
+          </Link>
+        </div>
+        <div className="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Case</th>
+                <th>Event</th>
+                <th>Amount</th>
+                <th>Recovery Prob.</th>
+                <th>Recommended Action</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.recentCasesTable.map(c => (
+                <tr key={c.id}>
+                  <td>
+                    <Link href={`/cases/${c.id}`} style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--rzp-blue)', textDecoration: 'none' }}>
+                      {c.caseNumber}
+                    </Link>
+                  </td>
+                  <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{c.eventType.replace(/_/g, ' ')}</td>
+                  <td><span className="amount">{formatINR(c.amount)}</span></td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div className="progress-bar" style={{ width: 40 }}>
+                        <div className="progress-fill progress-fill-blue" style={{ width: `${(c.recoveryProbability * 100).toFixed(0)}%` }} />
+                      </div>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{(c.recoveryProbability * 100).toFixed(0)}%</span>
+                    </div>
+                  </td>
+                  <td style={{ fontSize: 11 }}>{c.recommendedAction?.replace(/_/g, ' ') ?? '-'}</td>
+                  <td><span className={`badge badge-${c.status.toLowerCase()}`}>{c.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 

@@ -40,6 +40,7 @@ export interface CaseDetail {
     confidence: string | null;
     reasoning: string | null;
     shouldEscalate: boolean;
+    policyDecision: string | null;
     aiUsed: boolean;
     aiFailed: boolean;
     createdAt: string;

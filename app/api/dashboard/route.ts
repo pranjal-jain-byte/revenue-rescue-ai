@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { calculateBatchMetricsFromGroups } from '@/lib/utils/evaluation';
 
 export async function GET() {
   try {
@@ -10,6 +11,7 @@ export async function GET() {
       escalations,
       recentAuditEvents,
       recentSimulation,
+      recentCasesTable,
     ] = await Promise.all([
       prisma.recoveryCase.count(),
       prisma.recoveryCase.groupBy({
@@ -32,32 +34,27 @@ export async function GET() {
         orderBy: { startedAt: 'desc' },
         where: { status: 'COMPLETED' },
       }),
+      prisma.recoveryCase.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          caseNumber: true,
+          eventType: true,
+          amount: true,
+          recoveryProbability: true,
+          status: true,
+          decisions: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { recommendedAction: true },
+          }
+        },
+      }),
     ]);
 
-    // Build accounting
-    let totalAtRisk = 0;
-    let totalRecovered = 0;
-    let totalBlocked = 0;
-    let successfulRecoveries = 0;
-    let actionsBlocked = 0;
-
-    for (const g of statusGroups) {
-      const atRisk = g._sum.amount ?? 0;
-      const recovered = g._sum.actualRecovery ?? 0;
-      totalAtRisk += atRisk;
-
-      if (g.status === 'RECOVERED') {
-        totalRecovered += recovered;
-        successfulRecoveries += g._count._all;
-      }
-      if (g.status === 'BLOCKED') {
-        totalBlocked += atRisk;
-        actionsBlocked += g._count._all;
-      }
-    }
-
-    const recoveryRate = totalAtRisk > 0 ? totalRecovered / totalAtRisk : 0;
-    const unrecoverable = totalAtRisk - totalRecovered - totalBlocked;
+    // Build accounting using the shared evaluation module
+    const metrics = calculateBatchMetricsFromGroups(statusGroups);
 
     // Recovery by event type
     const byEventType = eventTypeGroups.map(g => ({
@@ -88,15 +85,15 @@ export async function GET() {
 
     return NextResponse.json({
       kpis: {
-        totalAtRisk,
-        totalRecovered,
-        unrecoverable,
-        recoveryRate,
+        totalAtRisk: metrics.totalAtRisk,
+        totalRecovered: metrics.totalRecovered,
+        unrecoverable: metrics.unrecoverable,
+        recoveryRate: metrics.recoveryRate,
         totalCases,
-        successfulRecoveries,
-        actionsBlocked,
-        escalations,
-        opportunityEstimate: totalAtRisk * 0.15, // estimated additional recoverable
+        successfulRecoveries: metrics.successfulRecoveries,
+        actionsBlocked: metrics.blockedActions,
+        escalations: metrics.escalatedCases,
+        opportunityEstimate: metrics.totalAtRisk * 0.15, // estimated additional recoverable
       },
       byStatus: statusGroups.map(g => ({
         status: g.status,
@@ -123,6 +120,15 @@ export async function GET() {
         recoveryRate: recentSimulation.recoveryRate,
         completedAt: recentSimulation.completedAt,
       } : null,
+      recentCasesTable: recentCasesTable.map(c => ({
+        id: c.id,
+        caseNumber: c.caseNumber,
+        eventType: c.eventType,
+        amount: c.amount,
+        recoveryProbability: c.recoveryProbability,
+        status: c.status,
+        recommendedAction: c.decisions[0]?.recommendedAction ?? null,
+      })),
     });
   } catch (err) {
     console.error('Dashboard API error:', err);

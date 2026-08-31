@@ -49,19 +49,24 @@ export function TimelineTab({ caseData }: { caseData: CaseDetail }) {
               </div>
 
               {ev.metadata && Object.keys(ev.metadata).length > 0 && (
-                <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-                  {Object.entries(ev.metadata).map(([k, v]) => (
-                    <div key={k} style={{ padding: '8px 12px', background: 'rgba(0,0,0,0.1)', borderRadius: 6 }}>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
-                        {k.replace(/([A-Z])/g, ' $1')}
+                <details style={{ marginTop: 12 }}>
+                  <summary style={{ fontSize: 11, color: 'var(--rzp-blue)', cursor: 'pointer', fontWeight: 500, outline: 'none' }}>
+                    View Details
+                  </summary>
+                  <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                    {Object.entries(ev.metadata).map(([k, v]) => (
+                      <div key={k} style={{ padding: '8px 12px', background: 'var(--bg-elevated)', borderRadius: 6, border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                          {k.replace(/([A-Z])/g, ' $1')}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 500, wordBreak: 'break-word' }}>
+                          {k.toLowerCase().includes('amount') && typeof v === 'number' ? formatINR(v) :
+                            typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 500, wordBreak: 'break-word' }}>
-                        {k.toLowerCase().includes('amount') && typeof v === 'number' ? formatINR(v) :
-                          typeof v === 'object' ? JSON.stringify(v) : String(v)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </details>
               )}
             </div>
           </div>
