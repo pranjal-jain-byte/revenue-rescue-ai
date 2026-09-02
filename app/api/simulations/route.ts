@@ -4,6 +4,7 @@ import { scoreRecoveryProbability } from '@/lib/agent/recovery-probability';
 import { evaluatePolicySync } from '@/lib/agent/policy-engine';
 import { validateAccounting } from '@/lib/utils/accounting';
 import type { ActionType } from '@/lib/agent/policy-engine';
+import crypto from 'crypto';
 
 
 const BATCH_SIZE = 10;
@@ -30,9 +31,10 @@ function selectActionForCase(
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json() as { caseCount?: number; name?: string };
+    const body = await request.json() as { caseCount?: number; name?: string; reuseBatchId?: string };
     const caseCount = Math.min(Math.max(body.caseCount ?? 100, 10), 1000);
     const name = body.name ?? `Simulation ${new Date().toISOString().slice(0, 16)}`;
+    const reuseBatchId = body.reuseBatchId;
 
     // Create simulation run
     const simulation = await prisma.simulationRun.create({
@@ -40,7 +42,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Run simulation asynchronously
-    void runSimulation(simulation.id, caseCount);
+    void runSimulation(simulation.id, caseCount, reuseBatchId);
 
     return NextResponse.json({ simulationId: simulation.id, status: 'RUNNING' });
   } catch (err) {
@@ -52,25 +54,106 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   const simulations = await prisma.simulationRun.findMany({
     orderBy: { startedAt: 'desc' },
-    take: 10,
+    take: 50,
   });
   return NextResponse.json({ simulations });
 }
 
-async function runSimulation(simulationId: string, caseCount: number): Promise<void> {
+async function runSimulation(simulationId: string, caseCount: number, reuseBatchId?: string): Promise<void> {
   try {
     // Get policy rules
-    const policyRules = await prisma.policyRule.findMany({ where: { isEnabled: true } });
+    const policyRules = await prisma.policyRule.findMany({ where: { isEnabled: true }, orderBy: { ruleKey: 'asc' } });
     const rules: Record<string, string> = {};
     for (const r of policyRules) rules[r.ruleKey] = r.value;
 
-    // Sample random cases
-    const totalDbCases = await prisma.recoveryCase.count();
-    const skip = Math.max(0, Math.floor(Math.random() * (totalDbCases - caseCount)));
-    const cases = await prisma.recoveryCase.findMany({
-      skip,
-      take: caseCount,
-      include: { customer: true },
+    const policySnapshot = JSON.stringify(rules);
+    const policyHash = crypto.createHash('sha256').update(policySnapshot).digest('hex');
+
+    const lastDistinctSim = await prisma.simulationRun.findFirst({
+      where: { 
+        NOT: [
+          { policyHash: policyHash },
+          { policyHash: null }
+        ]
+      },
+      orderBy: { startedAt: 'desc' },
+    });
+
+    const samePolicySim = await prisma.simulationRun.findFirst({
+      where: { policyHash: policyHash },
+      orderBy: { startedAt: 'desc' },
+    });
+
+    let policyVersion = samePolicySim?.policyVersion;
+    if (!policyVersion) {
+      const anyLastSim = await prisma.simulationRun.findFirst({
+        where: { policyVersion: { not: null } },
+        orderBy: { startedAt: 'desc' },
+      });
+      if (anyLastSim?.policyVersion?.startsWith('V')) {
+        const num = parseInt(anyLastSim.policyVersion.substring(1), 10);
+        policyVersion = `V${num + 1}`;
+      } else {
+        policyVersion = 'V1';
+      }
+    }
+
+    let previousPolicyVersion = lastDistinctSim?.policyVersion || null;
+    let policyChanges: Record<string, any> = {};
+    if (lastDistinctSim?.policySnapshot) {
+      const prevRules = JSON.parse(lastDistinctSim.policySnapshot);
+      for (const k of Object.keys(rules)) {
+        if (rules[k] !== prevRules[k]) {
+          policyChanges[k] = { previous: prevRules[k], new: rules[k] };
+        }
+      }
+      for (const k of Object.keys(prevRules)) {
+        if (rules[k] === undefined) {
+          policyChanges[k] = { previous: prevRules[k], new: null };
+        }
+      }
+    }
+
+    let cases: any[] = [];
+    if (reuseBatchId) {
+      const previousRun = await prisma.simulationRun.findFirst({
+        where: { batchId: reuseBatchId },
+        include: { results: { select: { caseId: true } } }
+      });
+      if (previousRun && previousRun.results.length > 0) {
+        const caseIds = previousRun.results.map((r: any) => r.caseId).filter(Boolean) as string[];
+        cases = await prisma.recoveryCase.findMany({
+          where: { id: { in: caseIds } },
+          include: { customer: true },
+        });
+        caseCount = cases.length;
+      }
+    }
+
+    if (cases.length === 0) {
+      const totalDbCases = await prisma.recoveryCase.count();
+      const skip = Math.max(0, Math.floor(Math.random() * (totalDbCases - caseCount)));
+      cases = await prisma.recoveryCase.findMany({
+        skip,
+        take: caseCount,
+        include: { customer: true },
+      });
+    }
+
+    const caseIdsForHash = cases.map(c => c.id).sort();
+    const batchId = 'B' + crypto.createHash('sha256').update(JSON.stringify(caseIdsForHash)).digest('hex').substring(0, 8);
+
+    await prisma.simulationRun.update({
+      where: { id: simulationId },
+      data: {
+        totalCases: cases.length,
+        batchId,
+        policyVersion,
+        policyHash,
+        policySnapshot,
+        previousPolicyVersion,
+        policyChanges: JSON.stringify(policyChanges),
+      },
     });
 
     let totalAtRisk = 0;

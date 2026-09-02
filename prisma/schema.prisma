@@ -173,6 +173,13 @@ model SimulationRun {
   startedAt         DateTime  @default(now())
   completedAt       DateTime?
   metadata          String?   // JSON string
+  
+  batchId               String?
+  policyVersion         String?
+  policyHash            String?
+  policySnapshot        String?   // JSON string
+  previousPolicyVersion String?
+  policyChanges         String?   // JSON string
 
   results SimulationResult[]
 }
